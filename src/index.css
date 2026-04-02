@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* ===== Custom Theme (Tailwind v4 CSS-first config) ===== */
+@theme {
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-900: #14532d;
+  --color-brand-950: #052e16;
+
+  --color-slate-800: #1e1e1e;
+  --color-slate-850: #171717;
+  --color-slate-900: #111111;
+  --color-slate-950: #0a0a0a;
+
+  --font-sans: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  --animate-blob: blob 10s infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse2: pulse2 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes blob {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes pulse2 {
+    50% { opacity: 0.5; }
+  }
+}
+
+/* ===== Custom Utility Classes ===== */
+.text-gradient {
+  background: linear-gradient(to right, #4ade80, #22c55e, #16a34a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.line-gradient {
+  background: linear-gradient(to right, #1e1e1e, rgba(34, 197, 94, 0.5), #1e1e1e);
+}
+
+.grain {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 2px, 3px 100%;
+  opacity: 0.2;
+  z-index: 1;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 110%;
+}
+
+.manifesto-scroll {
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(34, 197, 94, 0.06) 31px, rgba(34, 197, 94, 0.06) 32px);
+  background-size: 100% 32px;
+}
+
+.problem-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(30, 30, 30, 0.8);
+  overflow: hidden;
+}
+
+.problem-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1.5s ease;
+}
+
+.layunin-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+.donation-card {
+  transition: all 0.3s;
+}
+.donation-card:hover {
+  transform: translateY(-4px);
+}
+.donation-card.selected {
+  border-color: rgba(34, 197, 94, 0.5) !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+}
+
+.toast-notification {
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+.toast-notification.show {
+  transform: translateY(0);
+  opacity: 1;
+}
