@@ -130,7 +130,6 @@
         .from('newsletter_subscribers')
         .select('*')
         .eq('confirmation_token', token)
-        .single()
         .then(async ({ data, error }) => {
           console.log('Supabase response:', { data, error });
           
@@ -138,66 +137,73 @@
             console.error('Database error:', error);
             document.getElementById('content').innerHTML = `
               <div class="icon error">❌</div>
-              <h1>Invalid or Expired Link</h1>
-              <p>This confirmation link is invalid or has already been used.</p>
-              <p style="font-size: 12px; color: #999; margin-top: 10px;">Error: ${error.message}</p>
+              <h1>Database Error</h1>
+              <p>There was an error processing your request.</p>
+              <p style="font-size: 12px; color: #999; margin-top: 10px;">${error.message}</p>
               <a href="https://eabanteca-web.github.io/" class="btn">Go to Homepage</a>
             `;
-          } else if (!data) {
+          } else if (!data || data.length === 0) {
+            console.log('No data found for token:', token);
             document.getElementById('content').innerHTML = `
               <div class="icon error">❌</div>
               <h1>Invalid or Expired Link</h1>
               <p>This confirmation link is invalid or has already been used.</p>
+              <p style="font-size: 12px; color: #999; margin-top: 10px;">Token: ${token}</p>
               <a href="https://eabanteca-web.github.io/" class="btn">Go to Homepage</a>
             `;
-          } else if (data.is_confirmed) {
-            document.getElementById('content').innerHTML = `
-              <div class="icon success">✅</div>
-              <h1>Already Confirmed!</h1>
-              <p>Your subscription was already confirmed on ${new Date(data.confirmed_at || data.subscribed_at).toLocaleDateString()}.</p>
-              <p>Email: ${data.email}</p>
-              <a href="https://eabanteca-web.github.io/" class="btn">Back to Homepage</a>
-            `;
           } else {
-            // Update status to confirmed
-            const { error: updateError } = await supabase
-              .from('newsletter_subscribers')
-              .update({
-                is_confirmed: true,
-                confirmed_at: new Date().toISOString()
-              })
-              .eq('id', data.id);
-
-            if (updateError) {
-              console.error('Update error:', updateError);
-              document.getElementById('content').innerHTML = `
-                <div class="icon error">❌</div>
-                <h1>Confirmation Failed</h1>
-                <p>There was an error confirming your subscription. Please contact support.</p>
-                <a href="mailto:eabanteca@gmail.com" class="btn">Contact Support</a>
-              `;
-            } else {
+            const record = data[0];
+            console.log('Found record:', record);
+            
+            if (record.is_confirmed) {
               document.getElementById('content').innerHTML = `
                 <div class="icon success">✅</div>
-                <h1>Subscription Confirmed!</h1>
-                <p>Maraming salamat, <strong>${data.name || data.email}</strong>!</p>
-                <p>You're now subscribed to the eAbante newsletter.</p>
-                
-                <div class="benefits">
-                  <strong>You'll receive:</strong>
-                  <ul style="margin: 10px 0 0 20px; padding: 0;">
-                    <li>✓ Governance tips and best practices</li>
-                    <li>✓ Manifesto updates and success stories</li>
-                    <li>✓ Community organizing resources</li>
-                    <li>✓ Event invitations and workshops</li>
-                  </ul>
-                </div>
-                
-                <p style="margin-top: 20px; font-size: 13px; color: #666;">
-                  Check your inbox for our welcome email!
-                </p>
+                <h1>Already Confirmed!</h1>
+                <p>Your subscription was already confirmed on ${new Date(record.confirmed_at || record.subscribed_at).toLocaleDateString()}.</p>
+                <p>Email: ${record.email}</p>
                 <a href="https://eabanteca-web.github.io/" class="btn">Back to Homepage</a>
               `;
+            } else {
+              // Update status to confirmed
+              const { error: updateError } = await supabase
+                .from('newsletter_subscribers')
+                .update({
+                  is_confirmed: true,
+                  confirmed_at: new Date().toISOString()
+                })
+                .eq('id', record.id);
+
+              if (updateError) {
+                console.error('Update error:', updateError);
+                document.getElementById('content').innerHTML = `
+                  <div class="icon error">❌</div>
+                  <h1>Confirmation Failed</h1>
+                  <p>There was an error confirming your subscription. Please contact support.</p>
+                  <a href="mailto:eabanteca@gmail.com" class="btn">Contact Support</a>
+                `;
+              } else {
+                document.getElementById('content').innerHTML = `
+                  <div class="icon success">✅</div>
+                  <h1>Subscription Confirmed!</h1>
+                  <p>Maraming salamat, <strong>${record.name || record.email}</strong>!</p>
+                  <p>You're now subscribed to the eAbante newsletter.</p>
+                  
+                  <div class="benefits">
+                    <strong>You'll receive:</strong>
+                    <ul style="margin: 10px 0 0 20px; padding: 0;">
+                      <li>✓ Governance tips and best practices</li>
+                      <li>✓ Manifesto updates and success stories</li>
+                      <li>✓ Community organizing resources</li>
+                      <li>✓ Event invitations and workshops</li>
+                    </ul>
+                  </div>
+                  
+                  <p style="margin-top: 20px; font-size: 13px; color: #666;">
+                    Check your inbox for our welcome email!
+                  </p>
+                  <a href="https://eabanteca-web.github.io/" class="btn">Back to Homepage</a>
+                `;
+              }
             }
           }
         })
