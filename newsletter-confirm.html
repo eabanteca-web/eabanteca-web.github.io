@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Subscription - eAbante Movement</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 40px;
+    }
+    .icon.success { background: #d1fae5; color: #22c55e; }
+    .icon.error { background: #fee2e2; color: #ef4444; }
+    .icon.loading { background: #fef3c7; color: #f59e0b; }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .btn {
+      display: inline-block;
+      background: #22c55e;
+      color: white;
+      padding: 12px 30px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .btn:hover {
+      background: #16a34a;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #22c55e;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .benefits {
+      background: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 5px;
+      text-align: left;
+    }
+    .benefits li {
+      margin: 8px 0;
+      color: #166534;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="content">
+      <div class="icon loading">
+        <div class="spinner"></div>
+      </div>
+      <h1>Confirming your subscription...</h1>
+      <p>Please wait while we verify your confirmation token.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabase = createClient(
+      'https://wozhsunyhxvankwvztwc.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvemhzdW55aHh2YW5rd3Z6dHdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MzgyODUsImV4cCI6MjA5MDUxNDI4NX0.enanYMDsXkY13-154YkqFRqzo2E7CDTfhuJ1Ci4xNsI'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (!token) {
+      document.getElementById('content').innerHTML = `
+        <div class="icon error">❌</div>
+        <h1>Invalid Link</h1>
+        <p>This confirmation link is invalid or has expired.</p>
+        <a href="https://eabanteca-web.github.io/" class="btn">Go to Homepage</a>
+      `;
+    } else {
+      // Find and confirm the subscription
+      supabase
+        .from('newsletter_subscribers')
+        .select('*')
+        .eq('confirmation_token', token)
+        .single()
+        .then(async ({ data, error }) => {
+          if (error || !data) {
+            document.getElementById('content').innerHTML = `
+              <div class="icon error">❌</div>
+              <h1>Invalid or Expired Link</h1>
+              <p>This confirmation link is invalid or has already been used.</p>
+              <a href="https://eabanteca-web.github.io/" class="btn">Go to Homepage</a>
+            `;
+          } else if (data.is_confirmed) {
+            document.getElementById('content').innerHTML = `
+              <div class="icon success">✅</div>
+              <h1>Already Confirmed!</h1>
+              <p>Your subscription was already confirmed on ${new Date(data.confirmed_at || data.subscribed_at).toLocaleDateString()}.</p>
+              <p>Email: ${data.email}</p>
+              <a href="https://eabanteca-web.github.io/" class="btn">Back to Homepage</a>
+            `;
+          } else {
+            // Update status to confirmed
+            const { error: updateError } = await supabase
+              .from('newsletter_subscribers')
+              .update({
+                is_confirmed: true,
+                confirmed_at: new Date().toISOString()
+              })
+              .eq('id', data.id);
+
+            if (updateError) {
+              document.getElementById('content').innerHTML = `
+                <div class="icon error">❌</div>
+                <h1>Confirmation Failed</h1>
+                <p>There was an error confirming your subscription. Please contact support.</p>
+                <a href="mailto:eabanteca@gmail.com" class="btn">Contact Support</a>
+              `;
+            } else {
+              document.getElementById('content').innerHTML = `
+                <div class="icon success">✅</div>
+                <h1>Subscription Confirmed!</h1>
+                <p>Maraming salamat, <strong>${data.name || data.email}</strong>!</p>
+                <p>You're now subscribed to the eAbante newsletter.</p>
+                
+                <div class="benefits">
+                  <strong>You'll receive:</strong>
+                  <ul style="margin: 10px 0 0 20px; padding: 0;">
+                    <li>✓ Governance tips and best practices</li>
+                    <li>✓ Manifesto updates and success stories</li>
+                    <li>✓ Community organizing resources</li>
+                    <li>✓ Event invitations and workshops</li>
+                  </ul>
+                </div>
+                
+                <p style="margin-top: 20px; font-size: 13px; color: #666;">
+                  Check your inbox for our welcome email!
+                </p>
+                <a href="https://eabanteca-web.github.io/" class="btn">Back to Homepage</a>
+              `;
+            }
+          }
+        });
+    }
+  </script>
+</body>
+</html>
