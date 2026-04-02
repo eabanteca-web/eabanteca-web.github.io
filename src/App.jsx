@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from './supabaseClient';
 
 const translations = {
   en: {
@@ -692,6 +693,60 @@ function HowItWorksSection({t}) {
 }
 
 function SignSection({t,signFormRef,showToast}) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.target);
+    const data = {
+      full_name: formData.get('full_name'),
+      email: formData.get('email'),
+      phone_number: formData.get('phone_number'),
+      address_block_lot: formData.get('address_block_lot'),
+      purok: formData.get('purok'),
+      comment: formData.get('comment'),
+      manifesto_agreement: formData.get('manifesto_agreement') === 'on',
+      privacy_policy_agreement: formData.get('privacy_policy_agreement') === 'on',
+    };
+
+    // Save to Supabase
+    const { data: result, error } = await supabase
+      .from('manifesto_signatures')
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) {
+      showToast('May Error', 'Hindi ma-save ang pirma. Subukan ulit.');
+      console.error('Supabase error:', error);
+    } else {
+      // Call Edge Function to send email with PDF
+      try {
+        await fetch('https://wozhsunyhxvankwvztwc.supabase.co/functions/v1/send-manifesto-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvemhzdW55aHh2YW5rd3Z6dHdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MzgyODUsImV4cCI6MjA5MDUxNDI4NX0.enanYMDsXkY13-154YkqFRqzo2E7CDTfhuJ1Ci4xNsI',
+          },
+          body: JSON.stringify({
+            record: result,
+            type: 'INSERT',
+          }),
+        });
+      } catch (err) {
+        console.error('Email function error:', err);
+        // Don't show error to user - signing was successful, email is optional
+      }
+      
+      showToast('Nagpirma ka na!', `Ang iyong pirma ay #${result.signature_number}. Check your email for confirmation.`);
+      e.target.reset();
+    }
+
+    setIsSubmitting(false);
+  };
+
   return (
     <section id="sign" className="relative py-24 px-4">
       <div className="max-w-3xl mx-auto">
@@ -701,19 +756,19 @@ function SignSection({t,signFormRef,showToast}) {
           <p className="max-w-2xl mx-auto text-sm text-slate-400 font-mono">{t('sign-desc')}</p>
         </div>
         <div className="rounded-2xl border border-brand-500/20 bg-slate-900/50 backdrop-blur-sm shadow-[0_0_50px_rgba(0,0,0,0.5)] p-8">
-          <form ref={signFormRef} onSubmit={(e)=>{e.preventDefault();showToast('Nagpirma ka na!','Ang iyong pirma ay naitala. Mangyaring email para sa confirmation.');e.target.reset();}} className="space-y-4">
-            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-name-label')}</label><input type="text" placeholder="Juan Dela Cruz" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
-            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-email-label')}</label><input type="email" placeholder="you@email.com" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
+          <form ref={signFormRef} onSubmit={handleSubmit} className="space-y-4">
+            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-name-label')}</label><input name="full_name" type="text" placeholder="Juan Dela Cruz" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
+            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-email-label')}</label><input name="email" type="email" placeholder="you@email.com" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-address-label')}</label><input type="text" placeholder="Blk 5 Lot 12, Phase 2" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
-              <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-phone-label')}</label><input type="tel" placeholder="+63 9XX XXX XXXX" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
+              <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-address-label')}</label><input name="address_block_lot" type="text" placeholder="Blk 5 Lot 12, Phase 2" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
+              <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-phone-label')}</label><input name="phone_number" type="tel" placeholder="+63 9XX XXX XXXX" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors"/></div>
             </div>
             <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-purok-label')}</label>
-              <select required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-slate-400 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors appearance-none" style={{backgroundImage:`url('data:image/svg+xml;utf8,<svg fill=\'%2364748b\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'><path fill-rule=\'evenodd\' d=\'M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z\' clip-rule=\'evenodd\'/></svg>')`,backgroundPosition:'right 12px center',backgroundRepeat:'no-repeat',backgroundSize:'16px'}}>
+              <select name="purok" required className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-slate-400 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors appearance-none" style={{backgroundImage:`url('data:image/svg+xml;utf8,<svg fill=\'%2364748b\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'><path fill-rule=\'evenodd\' d=\'M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z\' clip-rule=\'evenodd\'/></svg>')`,backgroundPosition:'right 12px center',backgroundRepeat:'no-repeat',backgroundSize:'16px'}}>
                 <option value="" disabled selected>{t('sign-purok-select')}</option><option>SWAB</option><option>MEAB</option><option>CENTRAL</option><option>ABANTE</option><option>KAPITBAHAYAN</option><option>SEAB</option><option>ST. RAYMOND</option><option>{t('sign-purok-na')}</option>
               </select>
             </div>
-            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-comment-label')}</label><textarea rows="3" placeholder="Ano ang dahilan kung bakit ka sumasang-ayon sa Manipesto?" className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors resize-y"></textarea></div>
+            <div><label className="block text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">{t('sign-comment-label')}</label><textarea name="comment" rows="3" placeholder="Ano ang dahilan kung bakit ka sumasang-ayon sa Manipesto?" className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-white placeholder:text-slate-600 focus:border-brand-500/50 focus:outline-none focus:ring-1 focus:ring-brand-500/50 transition-colors resize-y"></textarea></div>
             <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
               <div className="flex items-start gap-2 mb-2"><iconify-icon icon="lucide:shield-check" width="16" className="text-brand-400 mt-0.5 flex-shrink-0"></iconify-icon><h5 className="text-xs font-bold text-slate-300 font-mono">{t('sign-privacy-title')}</h5></div>
               <div className="text-[9px] text-slate-400 font-mono leading-[1.7] space-y-1">
@@ -722,9 +777,9 @@ function SignSection({t,signFormRef,showToast}) {
                 <p className="text-slate-500 italic mt-2">{t('sign-privacy-agree')}</p>
               </div>
             </div>
-            <div className="flex items-start gap-3"><input type="checkbox" id="agreeManifesto" required className="mt-1 accent-brand-500"/><label htmlFor="agreeManifesto" className="text-xs text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{__html:t('sign-manifesto-agree')}}></label></div>
-            <div className="flex items-start gap-3"><input type="checkbox" id="agreePrivacy" required className="mt-1 accent-brand-500"/><label htmlFor="agreePrivacy" className="text-xs text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{__html:t('sign-privacy-agree2')}}></label></div>
-            <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg bg-brand-500 text-slate-950 text-xs font-bold uppercase tracking-wide hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300">{t('sign-btn')}<iconify-icon icon="lucide:pen-line" width="16"></iconify-icon></button>
+            <div className="flex items-start gap-3"><input type="checkbox" name="manifesto_agreement" id="agreeManifesto" required className="mt-1 accent-brand-500"/><label htmlFor="agreeManifesto" className="text-xs text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{__html:t('sign-manifesto-agree')}}></label></div>
+            <div className="flex items-start gap-3"><input type="checkbox" name="privacy_policy_agreement" id="agreePrivacy" required className="mt-1 accent-brand-500"/><label htmlFor="agreePrivacy" className="text-xs text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{__html:t('sign-privacy-agree2')}}></label></div>
+            <button type="submit" disabled={isSubmitting} className="w-full inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg bg-brand-500 text-slate-950 text-xs font-bold uppercase tracking-wide hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">{t('sign-btn')}<iconify-icon icon="lucide:pen-line" width="16"></iconify-icon></button>
             <p className="text-[10px] text-slate-600 font-mono text-center mt-4"><iconify-icon icon="lucide:lock" width="10" className="inline"></iconify-icon> Ang iyong pirma ay naka-encrypt at ligtas na itinatabi. Hindi ipapakita sa publiko nang walang iyong permiso.</p>
           </form>
         </div>
